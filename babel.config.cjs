@@ -1,4 +1,5 @@
-const isBundling = process.env.NODE_ENV === 'production';
+// Jest sets NODE_ENV=test; everywhere else keep ES modules so rollup can bundle
+const isTest = process.env.NODE_ENV === 'test';
 
 module.exports = {
   presets: [
@@ -6,12 +7,10 @@ module.exports = {
       targets: {
         node: 'current',
       },
-      // Disable module transformation during bundling
-      modules: isBundling ? false : 'commonjs'
+      modules: isTest ? 'commonjs' : false
     }],
   ],
   plugins: [
-    !isBundling && '@babel/plugin-transform-modules-commonjs',
     '@babel/plugin-transform-runtime'
-  ].filter(Boolean)
+  ]
 };
