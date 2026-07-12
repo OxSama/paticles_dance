@@ -2,11 +2,11 @@
     "name": "audio-particles-visualizer",
     "version": "1.0.0",
     "description": "A modular audio visualization system built with JavaScript",
-    "main": "dist/index.js",
+    "main": "dist/audio-visualizer.js",
     "module": "dist/index.esm.js",
     "unpkg": "dist/audio-visualizer.min.js",
     "scripts": {
-        "build": "NODE_ENV=production rollup -c",
+        "build": "rollup -c",
         "dev": "rollup -c -w",
         "test": "jest",
         "test:watch": "jest --watch",
@@ -25,25 +25,31 @@
         "sound",
         "canvas"
     ],
-    "author": "Your Name",
+    "author": "OxSama",
     "license": "MIT",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/OxSama/audio-particles-visualizer.git"
     },
     "devDependencies": {
-    "@babel/core": "^7.22.0",
-    "@babel/plugin-transform-runtime": "^7.22.0",
-    "@babel/preset-env": "^7.22.0",
-    "@rollup/plugin-babel": "^6.0.0",
-    "@rollup/plugin-commonjs": "^25.0.8",
-    "@rollup/plugin-node-resolve": "^15.3.0",
-    "@rollup/plugin-terser": "^0.4.4",
-    "rollup": "^3.29.5",
-    "jest": "^29.0.0",
-    "jest-environment-jsdom": "^29.0.0"
-  },
-  "dependencies": {
-    "@babel/runtime": "^7.22.0"
-  }
+        "@babel/core": "^7.22.0",
+        "@babel/plugin-transform-runtime": "^7.22.0",
+        "@babel/preset-env": "^7.22.0",
+        "@rollup/plugin-babel": "^6.0.0",
+        "@rollup/plugin-commonjs": "^25.0.8",
+        "@rollup/plugin-node-resolve": "^15.3.0",
+        "@rollup/plugin-terser": "^0.4.4",
+        "jest": "^29.0.0",
+        "jest-environment-jsdom": "^29.0.0",
+        "rollup": "^3.29.5",
+        "tsparticles-engine": "^2.12.0",
+        "tsparticles-slim": "^2.12.0"
+    },
+    "dependencies": {
+        "@babel/runtime": "^7.22.0"
+    },
+    "peerDependencies": {
+        "tsparticles-engine": "^2.11.0",
+        "tsparticles-slim": "^2.11.0"
+    }
 }
