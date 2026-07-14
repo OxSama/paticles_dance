@@ -4,148 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audio Particles Visualizer</title>
-    
-    <!-- Styles -->
+
+    <!-- Required for the built-in control panel (showControls) -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
-    
-    <!-- Required Dependencies -->
-    <script src="https://cdn.jsdelivr.net/npm/particles.js@2.0.0/particles.min.js"></script>
-    
-    <!-- Your built library -->
-    <script src="../dist/audio-visualizer.js"></script>
-    <link rel="stylesheet" href="./assets/css/styles.css">
 
-    <style>
-        input[type="range"] {
-            @apply w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            @apply appearance-none w-4 h-4 rounded-full bg-white cursor-pointer;
-        }
-        select, input[type="color"] {
-            @apply bg-gray-700 text-white rounded p-1 w-full;
-        }
-        .control-panel {
-            @apply backdrop-blur-sm bg-black bg-opacity-50;
-        }
-    </style>
+    <!-- The library (UMD build, tsparticles bundled in) -->
+    <script src="../dist/audio-visualizer.js"></script>
 </head>
 <body class="bg-black min-h-screen overflow-hidden">
     <!-- Visualization Container -->
     <div id="particles-js" class="fixed inset-0 z-0"></div>
 
-    <!-- Audio Element -->
-    <audio id="audio" style="display:none"></audio>
-
-    <!-- Controls -->
-    <div class="relative z-10 max-w-xl mx-auto mt-8 p-6">
-        <div class="control-panel rounded-lg p-6 space-y-6">
-            <!-- File Input -->
-            <div>
-                <label class="block text-white text-sm font-medium mb-2">Choose Audio File</label>
-                <input type="file" id="audioFile" accept="audio/*" 
-                       class="block w-full text-white">
-            </div>
-
-            <!-- Playback Controls -->
-            <div class="flex space-x-4">
-                <button id="playBtn" 
-                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-2 px-4 rounded-lg">
-                    Play
-                </button>
-                <button id="stopBtn"
-                        class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg">
-                    Stop
-                </button>
-            </div>
-
-            <!-- Visualization Controls -->
-            <div>
-                <label class="block text-white text-sm font-medium mb-2">Mode</label>
-                <select id="vizMode" class="w-full bg-gray-800 text-white rounded-lg">
-                    <option value="particles">Particles</option>
-                    <option value="wave">Wave</option>
-                    <option value="circular">Circular</option>
-                    <option value="pulse">Pulse</option>
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-white text-sm font-medium mb-2">Color Palette</label>
-                <select id="colorPalette" class="w-full bg-gray-800 text-white rounded-lg">
-                    <option value="neon">Neon Dreams</option>
-                    <option value="sunset">Sunset Vibes</option>
-                    <option value="aurora">Aurora Lights</option>
-                    <option value="retro">Retro Wave</option>
-                    <option value="galaxy">Galaxy</option>
-                </select>
-            </div>
-        </div>
+    <div class="relative z-10 max-w-md mx-auto mt-8 p-6 text-center text-white pointer-events-none">
+        <h1 class="text-2xl font-bold">Audio Particles Visualizer</h1>
+        <p class="text-gray-400 text-sm mt-2">
+            Open the <i class="fas fa-cog"></i> panel (top right) to load a file or URL and play.
+        </p>
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            try {
-                // Initialize with the constructor from the default export
-                const visualizer = new window.AudioVisualizer.default({
-                    container: '#particles-js',
-                    audio: '#audio',
-                    settings: {
-                        mode: 'particles',
-                        colorPalette: 'neon',
-                        sensitivity: 1.0,
-                        particleCount: 50
-                    }
-                });
-
-                // File input handling
-                document.getElementById('audioFile').addEventListener('change', async (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        try {
-                            await visualizer.audioCore.loadFile(file);
-                            // Update play button to show ready state
-                            document.getElementById('playBtn').textContent = 'Play';
-                        } catch (error) {
-                            console.error('Error loading file:', error);
-                            alert('Error loading audio file');
-                        }
-                    }
-                });
-
-                // Play button
-                document.getElementById('playBtn').addEventListener('click', async () => {
-                    const btn = document.getElementById('playBtn');
-                    if (btn.textContent === 'Play') {
-                        await visualizer.play();
-                        btn.textContent = 'Pause';
-                    } else {
-                        visualizer.pause();
-                        btn.textContent = 'Play';
-                    }
-                });
-
-                // Stop button
-                document.getElementById('stopBtn').addEventListener('click', () => {
-                    visualizer.stop();
-                    document.getElementById('playBtn').textContent = 'Play';
-                });
-
-                // Visualization mode
-                document.getElementById('vizMode').addEventListener('change', (e) => {
-                    visualizer.setMode(e.target.value);
-                });
-
-                // Color palette
-                document.getElementById('colorPalette').addEventListener('change', (e) => {
-                    visualizer.setColorPalette(e.target.value);
-                });
-
-            } catch (error) {
-                console.error('Initialization error:', error);
-                alert(`Error: ${error.message}`);
-            }
+            const visualizer = new AudioVisualizer.default({
+                container: '#particles-js',
+                showControls: true,
+                settings: {
+                    sensitivity: 1.0,
+                    particleCount: 50
+                }
+            });
+            window.visualizer = visualizer; // for tinkering in the console
         });
     </script>
 </body>

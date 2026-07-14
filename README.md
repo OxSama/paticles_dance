@@ -1,26 +1,25 @@
 # Audio Particles Visualizer
 
-A powerful, customizable audio visualization library that creates stunning particle-based visualizations reacting to your music in real-time.
-
+A customizable audio visualization library that creates particle-based visualizations reacting to your music in real-time. Built on the Web Audio API and [tsparticles](https://particles.js.org/) v2.
 
 ## Features
 
-🎵 Real-time audio analysis
-🎨 Multiple visualization modes (particles, waves, circular)
-🎯 Customizable particle effects
-🎚️ Advanced audio controls
-🎮 Keyboard shortcuts
-🌈 Beautiful color palettes
-📱 Responsive design
-⚡ High performance
+- 🎵 Real-time frequency analysis (sub-bass / bass / mid / high bands)
+- 📡 **Streaming playback** — audio starts playing immediately, like video, no full download needed
+- 📁 Play from URLs or uploaded files
+- 🎨 4 visualization modes: particles, wave, circular, pulse
+- 🌈 5 color palettes: neon, sunset, aurora, retro, galaxy
+- 🥁 Simple beat detection with pulse effects
+- 🎛️ Optional built-in control panel
+- ⚛️ Can drive an existing tsparticles container (plays nicely with react-particles)
 
 ## Installation
 
 ```bash
-npm install audio-particles-visualizer
+npm install audio-particles-visualizer tsparticles-engine tsparticles-slim
 ```
 
-Or include via CDN:
+Or via CDN (tsparticles is bundled into the UMD build — one script tag is enough):
 
 ```html
 <script src="https://unpkg.com/audio-particles-visualizer"></script>
@@ -28,60 +27,69 @@ Or include via CDN:
 
 ## Quick Start
 
-1. Add container and audio elements:
 ```html
 <div id="particles-js"></div>
-<audio id="audio" src="your-audio.mp3"></audio>
 ```
 
-2. Initialize the visualizer:
 ```javascript
-const visualizer = new AudioVisualizer({
+const visualizer = new AudioVisualizer.default({
     container: '#particles-js',
-    audio: '#audio',
-    options: {
-        mode: 'particles',
-        colorPalette: 'neon',
+    tracks: ['https://example.com/song.mp3'], // streamed, not downloaded up front
+    settings: {
         sensitivity: 1.0,
         particleCount: 50
     }
 });
+
+// Must be triggered by a user gesture (browser autoplay policy)
+playButton.addEventListener('click', () => visualizer.play());
 ```
 
-## Usage Examples
+With a bundler:
 
-### Basic Setup
 ```javascript
-// Create visualizer with default settings
-const visualizer = new AudioVisualizer({
-    container: '#particles-js',
-    audio: '#audio'
-});
+import AudioVisualizer from 'audio-particles-visualizer';
 ```
 
-### Custom Configuration
-```javascript
-const visualizer = new AudioVisualizer({
-    container: '#particles-js',
-    audio: '#audio',
-    options: {
-        mode: 'particles',
-        colorPalette: 'sunset',
-        sensitivity: 1.5,
-        particleCount: 100,
-        showStats: true
-    }
-});
-```
+### With the built-in control panel
 
-### With Control Panel
 ```javascript
-const visualizer = new AudioVisualizer({
+const visualizer = new AudioVisualizer.default({
     container: '#particles-js',
-    audio: '#audio',
     showControls: true
 });
 ```
+
+The panel includes file upload, URL input, playback/seek/volume/loop controls and all
+visualization settings. It is styled with [Tailwind CSS](https://tailwindcss.com) classes and
+[Font Awesome](https://fontawesome.com) icons, so both must be loaded on the page:
+
+```html
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.16/dist/tailwind.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+```
+
+### Driving an existing tsparticles container (React example)
+
+If your app already renders particles (e.g. with `react-particles`), hand the loaded
+container to the visualizer and it will make *your* particles dance — your config stays
+untouched:
+
+```jsx
+<Particles
+    id="tsparticles"
+    options={myOptions}
+    loaded={async (container) => {
+        const visualizer = new AudioVisualizer({
+            particlesContainer: container,
+            tracks: ['/music/track.mp3']
+        });
+    }}
+/>
+```
+
+In this mode `setMode`, `setColorPalette`, and `particleCount` are no-ops — the host owns
+the particle config; the library only drives movement, size, and opacity from the audio.
 
 ## API Reference
 
@@ -89,47 +97,51 @@ const visualizer = new AudioVisualizer({
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| container | string/Element | required | Container element or selector |
-| audio | string/Element | required | Audio element or selector |
-| mode | string | 'particles' | Visualization mode |
-| colorPalette | string | 'neon' | Color palette name |
-| sensitivity | number | 1.0 | Audio sensitivity (0.1-2.0) |
+| container | string/Element | — | Container element or selector (required unless particlesContainer is set) |
+| particlesContainer | Container | — | Existing tsparticles container to drive |
+| tracks | string[] | [] | Audio URLs, streamed and played in order |
+| showControls | boolean | false | Render the built-in control panel (needs Tailwind + Font Awesome) |
+| settings | object | see below | Visualization settings |
+
+### Settings
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| sensitivity | number | 1.0 | Audio reactivity (0.1–2.0) |
 | particleCount | number | 50 | Number of particles |
-| showControls | boolean | false | Show control panel |
-| showStats | boolean | false | Show performance stats |
+| mode | string | 'particles' | Visualization mode |
+| palette | string | 'sunset' | Color palette name |
+| colorMode | string | 'spectrum' | 'spectrum', 'solid' or 'gradient' |
+| baseColor | string | '#ffffff' | Base color for solid/gradient modes |
 
 ### Methods
 
-#### Audio Control
 ```javascript
-visualizer.play()       // Start audio playback
-visualizer.pause()      // Pause audio playback
-visualizer.stop()       // Stop audio playback
-visualizer.setVolume(0.5) // Set volume (0-1)
+visualizer.play()                     // Start playback (returns Promise)
+visualizer.pause()                    // Pause playback
+visualizer.stop()                     // Stop playback
+visualizer.seekTo(30)                 // Seek to 30s
+visualizer.setVolume(0.5)             // Set volume (0-1)
+visualizer.loadFile(file)             // Load a File (e.g. from <input type="file">)
+visualizer.loadUrl(url, autoPlay)     // Stream an audio URL
+visualizer.setMode('wave')            // Change visualization mode
+visualizer.setColorPalette('sunset')  // Change color palette
+visualizer.updateSettings({ sensitivity: 1.5, particleCount: 100 })
+visualizer.dispose()                  // Clean up audio context and particles
+await visualizer.ready                // Resolves once particles are created
 ```
 
-#### Visualization Control
-```javascript
-visualizer.setMode('wave')           // Change visualization mode
-visualizer.setColorPalette('sunset') // Change color palette
-visualizer.updateSettings({          // Update multiple settings
-    sensitivity: 1.5,
-    particleCount: 100
-})
-```
+### CORS note for remote audio
 
-### Events
-```javascript
-visualizer.on('play', () => console.log('Audio started'));
-visualizer.on('pause', () => console.log('Audio paused'));
-visualizer.on('stop', () => console.log('Audio stopped'));
-```
+Audio is streamed through the Web Audio API, so remote files must be served with CORS
+headers (`Access-Control-Allow-Origin`), or the analyser reads silence. Dropbox direct
+links (`dl.dropboxusercontent.com`) and most CDNs send them.
 
-## Available Modes
+## Modes
 
 - `particles`: Classic particle movement
-- `wave`: Waveform visualization
-- `circular`: Circular particle motion
+- `wave`: Upward wave motion
+- `circular`: Orbiting motion around a central point
 - `pulse`: Beat-reactive pulsing
 
 ## Color Palettes
@@ -140,24 +152,33 @@ visualizer.on('stop', () => console.log('Audio stopped'));
 - `retro`: Synthwave aesthetic
 - `galaxy`: Deep space colors
 
-## Keyboard Shortcuts
+## Keyboard Shortcuts (with showControls)
 
 - `Space`: Play/Pause
 - `M`: Mute/Unmute
 - `←/→`: Previous/Next track
-- `Esc`: Toggle control panel
+- `Esc`: Close control panel
+
+## Demo
+
+Run a local server from the repo root and open `demo/index.html`:
+
+```bash
+npm run build
+npx serve .
+```
+
+## Development
+
+```bash
+npm install
+npm test        # jest
+npm run build   # rollup → dist/
+```
 
 ## Browser Support
 
-- Chrome 49+
-- Firefox 52+
-- Safari 11+
-- Edge 79+
-- Opera 36+
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+Any browser with Web Audio API support (Chrome 49+, Firefox 52+, Safari 11+, Edge 79+).
 
 ## License
 
