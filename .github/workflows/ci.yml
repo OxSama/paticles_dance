@@ -58,6 +58,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           source: "deploy/*"
           target: "/home/ytztlxzp/audio-particles-visualizer.oxsama.com/public_html"
+          rm: true
           strip_components: 1
           debug: true
           
