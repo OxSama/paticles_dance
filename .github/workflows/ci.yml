@@ -10,10 +10,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
+
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
@@ -30,11 +30,10 @@ jobs:
       - name: Create deployment package
         run: |
           mkdir -p deploy
-          cp -r dist/* deploy/
-          cp -r demo/* deploy/
-          
+          cp -r dist demo deploy/
+
       - name: Upload deployment package
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: deploy-package
           path: deploy/
@@ -46,7 +45,7 @@ jobs:
     
     steps:
       - name: Download deployment package
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: deploy-package
           path: deploy/
@@ -70,8 +69,7 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /home/ytztlxzp/audio-particles-visualizer.oxsama.com/public_html
-            echo 'DirectoryIndex index.html index.php' > .htaccess
+            echo 'DirectoryIndex demo/index.html' > .htaccess
             echo 'Options -MultiViews' >> .htaccess
-            chmod 644 index.html
             chmod 644 .htaccess
             chmod -R 755 /home/ytztlxzp/audio-particles-visualizer.oxsama.com/public_html
