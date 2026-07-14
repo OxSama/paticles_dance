@@ -4,7 +4,21 @@ export const controlPanelTemplate = `
             <!-- Audio Controls Section -->
             <div class="border-b border-gray-600 pb-4">
                 <h3 class="text-sm font-medium mb-3">Audio Controls</h3>
-                
+
+                <!-- Audio Source -->
+                <div class="mb-4">
+                    <label class="block text-xs font-medium mb-1">Audio File</label>
+                    <input type="file" id="audioFileInput" accept="audio/*"
+                           class="block w-full text-xs text-gray-300">
+                    <label class="block text-xs font-medium mt-2 mb-1">Or Audio URL</label>
+                    <div class="flex space-x-2">
+                        <input type="url" id="audioUrlInput" placeholder="https://..."
+                               class="flex-grow rounded-md bg-gray-700 border-transparent text-sm px-2 py-1">
+                        <button id="loadUrlBtn"
+                                class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-sm">Load</button>
+                    </div>
+                </div>
+
                 <!-- Playback Controls -->
                 <div class="flex items-center justify-between mb-4">
                     <button id="prevTrack" class="text-white hover:text-blue-400 transition-colors">
@@ -36,8 +50,8 @@ export const controlPanelTemplate = `
                     </div>
                 </div>
 
-                <!-- Track Progress currently hidden as there's a bug -->
-                <div class="mt-2 hidden">
+                <!-- Track Progress -->
+                <div class="mt-2">
                     <div class="flex items-center space-x-2 text-xs">
                         <span id="currentTime">0:00</span>
                         <div class="flex-grow">
@@ -87,14 +101,6 @@ export const controlPanelTemplate = `
                            class="mt-1 block w-full h-8 rounded-md">
                 </div>
                 
-                <div class="mt-3">
-                    <label class="flex items-center">
-                        <input type="checkbox" id="showStats" 
-                               class="rounded bg-gray-700 border-transparent focus:border-gray-500 focus:bg-gray-600 focus:ring-0">
-                        <span class="ml-2 text-sm">Show Stats</span>
-                    </label>
-                </div>
-
                 <div class="mt-3">
                     <label class="block text-sm font-medium">Color Palette</label>
                     <select id="colorPalette" class="mt-1 block w-full rounded-md bg-gray-700 border-transparent focus:border-gray-500 focus:bg-gray-600 focus:ring-0 text-sm">

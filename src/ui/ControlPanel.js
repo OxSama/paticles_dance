@@ -1,6 +1,6 @@
 import { controlPanelTemplate, trackInfoTemplate } from './templates.js';
-import { formatTime } from '../utils/timeUtils.js';
-import { visualizationModes, getAvailableModes } from '../config/visualModes.js';
+import { formatTime, calculateProgress, percentageToTime } from '../utils/timeUtils.js';
+import { visualizationModes } from '../config/visualModes.js';
 
 
 const ANIMATION = {
@@ -152,10 +152,15 @@ export default class ControlPanel {
             particleCount: document.getElementById('particleCount'),
             colorMode: document.getElementById('colorMode'),
             baseColor: document.getElementById('baseColor'),
-            showStats: document.getElementById('showStats'),
             colorPicker: document.getElementById('colorPicker'),
+            audioFileInput: document.getElementById('audioFileInput'),
+            audioUrlInput: document.getElementById('audioUrlInput'),
+            loadUrlBtn: document.getElementById('loadUrlBtn'),
             trackInfo: document.querySelector('.track-info-container')
         };
+
+        // Reflect the saved volume in the slider
+        this.elements.volumeControl.value = this.audioCore.audioControls.volume * 100;
     }
 
     populateVisualizationModes() {
@@ -203,9 +208,58 @@ export default class ControlPanel {
             }
         });
 
+        // Keep the play/pause icon in sync with the element, whatever triggered the change
+        this.audioCore.audio.addEventListener('play', () => {
+            this.elements.playPauseBtn.innerHTML = '<i class="fas fa-pause"></i>';
+        });
+        this.audioCore.audio.addEventListener('pause', () => {
+            this.elements.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+        });
+        this.audioCore.audio.addEventListener('timeupdate', () => {
+            this.updateTimeDisplay(this.audioCore.currentTime, this.audioCore.duration);
+        });
+
+        this.elements.playPauseBtn.addEventListener('click', () => {
+            if (this.audioCore.state.isPlaying) {
+                this.audioCore.handlePause();
+            } else {
+                this.audioCore.handlePlay();
+            }
+        });
+
         this.elements.stopBtn.addEventListener('click', () => {
             this.audioCore.handleStop();
-            this.elements.playPauseBtn.innerHTML = '<i class="fas fa-play"></i>';
+        });
+
+        this.elements.muteBtn.addEventListener('click', () => {
+            const muted = this.audioCore.toggleMute();
+            this.elements.muteBtn.innerHTML =
+                `<i class="fas fa-volume-${muted ? 'mute' : 'up'}"></i>`;
+        });
+
+        this.elements.loopBtn.addEventListener('click', () => {
+            const looping = this.audioCore.toggleLoop();
+            this.elements.loopBtn.classList.toggle('opacity-50', !looping);
+        });
+
+        this.elements.seekBar.addEventListener('input', (e) => {
+            this.audioCore.seekTo(percentageToTime(e.target.value, this.audioCore.duration));
+        });
+
+        this.elements.audioFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                await this.audioCore.loadFile(file);
+                this.updateTrackInfo(file.name);
+            }
+        });
+
+        this.elements.loadUrlBtn.addEventListener('click', async () => {
+            const url = this.elements.audioUrlInput.value.trim();
+            if (url) {
+                await this.audioCore.loadUrl(url, true);
+                this.updateTrackInfo(url.split('/').pop().split('?')[0] || url);
+            }
         });
 
         this.elements.prevTrack.addEventListener('click', () => {
@@ -349,10 +403,9 @@ export default class ControlPanel {
     }
 
     updateTimeDisplay(currentTime, duration) {
-        this.elements.currentTime.textContent = formatTime(currentTime);
-        this.elements.duration.textContent = formatTime(duration);
-        const progress = calculateProgress(currentTime, duration);
-        this.elements.seekBar.value = progress;
+        this.elements.currentTime.textContent = formatTime(currentTime || 0);
+        this.elements.duration.textContent = formatTime(duration || 0);
+        this.elements.seekBar.value = calculateProgress(currentTime, duration);
     }
     
 }

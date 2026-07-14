@@ -1,26 +1,48 @@
 import AudioCore from './core/AudioCore';
-import VisualizerEngine from './core/VisualizerEngine';
+import VisualizerEngine, { COLOR_PALETTES } from './core/VisualizerEngine';
+import UIController from './ui/UIController';
 import { defaultVisualizerSettings } from './config/visualModes';
 
 class AudioVisualizer {
     /**
      * Creates an audio visualizer instance
      * @param {Object} options - Configuration options
-     * @param {string|Element} options.container - Container element or selector
-     * @param {string|Element} options.audio - Audio element or selector
+     * @param {string|Element} [options.container] - Container element or selector (library renders particles into it)
+     * @param {Object} [options.particlesContainer] - An existing tsparticles Container instance to drive instead
+     *                                                (e.g. from react-particles' loaded callback)
+     * @param {string[]} [options.tracks] - Audio track URLs (streamed, played in order)
+     * @param {boolean} [options.showControls] - Render the built-in control panel (requires Tailwind CSS + Font Awesome)
      * @param {Object} [options.settings] - Visualization settings
      */
     constructor(options = {}) {
-        if (!options.container) {
-            throw new Error('Container element is required');
+        if (!options.container && !options.particlesContainer) {
+            throw new Error('Either container or particlesContainer is required');
         }
-        if (!options.audio) {
-            throw new Error('Audio element is required');
+
+        let containerId;
+        if (!options.particlesContainer) {
+            const container = typeof options.container === 'string'
+                ? document.querySelector(options.container)
+                : options.container;
+            if (!container) {
+                throw new Error(`Container not found: ${options.container}`);
+            }
+            // tsparticles addresses its target by element id
+            if (!container.id) {
+                container.id = 'audio-particles-visualizer';
+            }
+            containerId = container.id;
         }
 
         // Initialize components
-        this.audioCore = new AudioCore();
-        this.visualizer = new VisualizerEngine(this.audioCore);
+        this.audioCore = new AudioCore(options.tracks || []);
+        this.visualizer = new VisualizerEngine(this.audioCore, {
+            containerId,
+            container: options.particlesContainer
+        });
+
+        // Resolves once particles are created and the render loop is running
+        this.ready = this.visualizer.ready;
 
         // Apply settings
         if (options.settings) {
@@ -28,6 +50,10 @@ class AudioVisualizer {
                 ...defaultVisualizerSettings,
                 ...options.settings
             });
+        }
+
+        if (options.showControls) {
+            this.ui = new UIController(this.audioCore, this.visualizer);
         }
     }
 
@@ -51,6 +77,33 @@ class AudioVisualizer {
      */
     stop() {
         this.audioCore.handleStop();
+    }
+
+    /**
+     * Load an audio file (e.g. from a file input)
+     * @param {File} file
+     * @returns {Promise<boolean>}
+     */
+    loadFile(file) {
+        return this.audioCore.loadFile(file);
+    }
+
+    /**
+     * Load an audio URL (streams - starts playing before fully downloaded)
+     * @param {string} url
+     * @param {boolean} [autoPlay=false]
+     * @returns {Promise<boolean>}
+     */
+    loadUrl(url, autoPlay = false) {
+        return this.audioCore.loadUrl(url, autoPlay);
+    }
+
+    /**
+     * Seek to a time in seconds
+     * @param {number} time
+     */
+    seekTo(time) {
+        this.audioCore.seekTo(time);
     }
 
     /**
@@ -104,5 +157,6 @@ export default AudioVisualizer;
 export {
     AudioCore,
     VisualizerEngine,
+    COLOR_PALETTES,
     defaultVisualizerSettings
 };
