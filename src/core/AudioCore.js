@@ -1,28 +1,30 @@
 export default class AudioCore {
-    constructor() {
+    constructor(tracks = []) {
         // Initialize audio context with fallback
         this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
         this.analyser = this.audioContext.createAnalyser();
         this.analyser.fftSize = 2048;
-    
-        // Initialize audio source as null
-        this.audioSource = null;
-        
+
+        // Persistent gain node so volume survives play/pause cycles
+        this.gainNode = this.audioContext.createGain();
+        this.gainNode.connect(this.analyser);
+        this.analyser.connect(this.audioContext.destination);
+
+        // Streaming playback: an HTMLAudioElement buffers ahead like video,
+        // so playback starts before the file is fully downloaded.
+        // crossOrigin is required or the analyser reads silence on remote URLs.
+        this.audio = new Audio();
+        this.audio.crossOrigin = 'anonymous';
+        this.audio.preload = 'auto';
+        this.mediaSource = this.audioContext.createMediaElementSource(this.audio);
+        this.mediaSource.connect(this.gainNode);
+
         // Initialize state
         this.state = {
             isPlaying: false,
             isPaused: false,
             isStopped: true
         };
-        
-        // Timing information
-        this.timing = {
-            startTime: 0,
-            pausedAt: 0
-        };
-        
-        // Audio buffer
-        this.buffer = null;
 
         // Audio controls
         this.audioControls = {
@@ -31,48 +33,88 @@ export default class AudioCore {
             previousVolume: 1,
             isLooping: false
         };
-        
+
         // Playlist configuration
         this.playlist = {
-            tracks: [
-                'https://dl.dropboxusercontent.com/scl/fi/8km1bqcn5352t7ep4sapd/01.-STARGAZING.mp3?rlkey=mhdfkxqqm2lypqzq4w2xsnwrw&st=fb8lu7or&dl=0',
-                'https://dl.dropboxusercontent.com/scl/fi/eyhxveg8ed9o89l9qvhg2/03.-SICKO-MODE.mp3?rlkey=o42gwx5ndu4tkawnjfku1cn5f&st=q6d6z2yb&dl=0'
-            ],
+            tracks,
             currentIndex: 0,
-            currentFile: null  // Add this to handle uploaded files
+            currentFile: null
         };
+        this.objectUrl = null;
 
         // Frequency data array
         this.data = new Uint8Array(this.analyser.frequencyBinCount);
 
-        // Bind methods
-        this.handleAudioEnd = this.handleAudioEnd.bind(this);
-        this.handlePlay = this.handlePlay.bind(this);
-        this.handleStop = this.handleStop.bind(this);
-        this.handlePause = this.handlePause.bind(this);
+        // Keep state in sync with the element (covers external pauses too)
+        this.audio.addEventListener('play', () => {
+            this.state.isPlaying = true;
+            this.state.isPaused = false;
+            this.state.isStopped = false;
+        });
+        this.audio.addEventListener('pause', () => {
+            if (!this.state.isStopped) {
+                this.state.isPlaying = false;
+                this.state.isPaused = true;
+            }
+        });
+        this.audio.addEventListener('ended', () => this.handleAudioEnd());
 
-        // Load initial track
-        this.loadTrack(this.playlist.currentIndex, false);
+        // Load initial track if any were provided
+        if (this.playlist.tracks.length) {
+            this.loadTrack(this.playlist.currentIndex, false);
+        }
 
         // Load saved volume settings
         this.loadSavedVolume();
+        this.gainNode.gain.value = this.audioControls.volume;
     }
 
+    /**
+     * Load an uploaded File (e.g. from an <input type="file">)
+     * @param {File} file
+     * @returns {Promise<boolean>}
+     */
     async loadFile(file) {
         try {
-            const arrayBuffer = await file.arrayBuffer();
-            this.buffer = await this.audioContext.decodeAudioData(arrayBuffer);
+            if (this.objectUrl) {
+                URL.revokeObjectURL(this.objectUrl);
+            }
+            this.objectUrl = URL.createObjectURL(file);
             this.playlist.currentFile = file;
+            this.setSource(this.objectUrl);
             return true;
         } catch (error) {
             console.error('Error loading file:', error);
             return false;
         }
     }
-    
-    clearUploadedFile() {
+
+    /**
+     * Load a single audio URL (streams; no full download needed)
+     * @param {string} url
+     * @param {boolean} [autoPlay=false]
+     */
+    async loadUrl(url, autoPlay = false) {
         this.playlist.currentFile = null;
-        this.buffer = null;
+        this.setSource(url);
+        if (autoPlay) {
+            await this.handlePlay();
+        }
+        return true;
+    }
+
+    clearUploadedFile() {
+        if (this.objectUrl) {
+            URL.revokeObjectURL(this.objectUrl);
+            this.objectUrl = null;
+        }
+        this.playlist.currentFile = null;
+    }
+
+    setSource(src) {
+        this.handleStop();
+        this.audio.src = src;
+        this.audio.load();
     }
 
     loadSavedVolume() {
@@ -82,150 +124,108 @@ export default class AudioCore {
         }
     }
 
-    // Modified loadTrack to handle both URLs and files
+    /**
+     * Load a playlist track by index
+     * @param {number} trackIndex
+     * @param {boolean} [autoPlay=true]
+     */
     async loadTrack(trackIndex, autoPlay = true) {
-        // If there's an uploaded file, use that instead of playlist
+        // If there's an uploaded file, use that instead of the playlist
         if (this.playlist.currentFile) {
-            return await this.loadFile(this.playlist.currentFile);
+            return this.loadFile(this.playlist.currentFile);
         }
 
-        // Otherwise use the playlist tracks
-        try {
-            const response = await fetch(this.playlist.tracks[trackIndex]);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const arrayBuffer = await response.arrayBuffer();
-            this.buffer = await this.audioContext.decodeAudioData(arrayBuffer);
-            
-            if (autoPlay && !this.state.isStopped) {
-                await this.handlePlay();
-            }
-            return true;
-        } catch (error) {
-            console.error('Error loading track:', error);
-            return false;
+        const url = this.playlist.tracks[trackIndex];
+        if (!url) return false;
+
+        this.setSource(url);
+        if (autoPlay) {
+            await this.handlePlay();
         }
+        return true;
     }
 
     async handlePlay() {
+        if (!this.audio.src) return;
+
         if (this.audioContext.state === 'suspended') {
             await this.audioContext.resume();
         }
 
         this.state.isStopped = false;
-
-        if (this.audioSource) {
-            this.audioSource.disconnect();
-        }
-
-        this.audioSource = this.audioContext.createBufferSource();
-        this.audioSource.buffer = this.buffer;
-        this.audioSource.connect(this.analyser);
-        this.analyser.connect(this.audioContext.destination);
-
-        const offset = this.state.isPaused ? 
-            this.timing.pausedAt - this.timing.startTime : 0;
-
-        this.audioSource.start(0, offset);
-        this.audioSource.onended = () => this.handleAudioEnd();
-
-        this.state.isPlaying = true;
-        this.state.isPaused = false;
-        this.timing.startTime = this.audioContext.currentTime - offset;
+        await this.audio.play();
     }
 
     handlePause() {
         if (this.state.isPlaying) {
-            this.audioSource.stop();
-            this.state.isPlaying = false;
-            this.state.isPaused = true;
-            this.timing.pausedAt = this.audioContext.currentTime;
+            this.audio.pause();
         }
     }
 
     handleStop() {
         if (this.state.isPlaying || this.state.isPaused) {
-            if (this.audioSource) {
-                this.audioSource.stop();
-                this.audioSource = null;
-            }
-
             this.state.isPlaying = false;
             this.state.isPaused = false;
             this.state.isStopped = true;
-            this.timing.startTime = 0;
-            this.timing.pausedAt = 0;
+            this.audio.pause();
+            this.audio.currentTime = 0;
         }
     }
 
-    // Modified handleAudioEnd to handle both modes
     handleAudioEnd() {
-        if (!this.state.isStopped) {
-            if (this.audioControls.isLooping) {
-                this.handlePlay();
-            } else if (!this.playlist.currentFile) {
-                // Only cycle through playlist if not playing an uploaded file
-                this.playlist.currentIndex = (this.playlist.currentIndex + 1) % this.playlist.tracks.length;
-                this.loadTrack(this.playlist.currentIndex, true);
-            }
+        if (this.audioControls.isLooping) {
+            this.handlePlay();
+        } else if (!this.playlist.currentFile && this.playlist.tracks.length > 1) {
+            this.playlist.currentIndex =
+                (this.playlist.currentIndex + 1) % this.playlist.tracks.length;
+            this.loadTrack(this.playlist.currentIndex, true);
+        } else {
+            this.state.isPlaying = false;
+            this.state.isPaused = false;
+            this.state.isStopped = true;
         }
     }
 
     seekTo(time) {
-        if (!this.buffer) return;
-        
-        const wasPlaying = this.state.isPlaying;
-        const newTime = Math.min(Math.max(0, time), this.buffer.duration);
+        if (!this.audio.duration) return;
+        this.audio.currentTime = Math.min(Math.max(0, time), this.audio.duration);
+    }
 
-        if (this.audioSource) {
-            this.audioSource.stop();
-            this.audioSource.disconnect();
-        }
+    get currentTime() {
+        return this.audio.currentTime;
+    }
 
-        this.audioSource = this.audioContext.createBufferSource();
-        this.audioSource.buffer = this.buffer;
-        this.audioSource.connect(this.analyser);
-        this.analyser.connect(this.audioContext.destination);
-        
-        this.timing.startTime = this.audioContext.currentTime - newTime;
-        this.timing.pausedAt = 0;
-        
-        if (wasPlaying || !this.state.isPaused) {
-            this.audioSource.start(0, newTime);
-            this.state.isPlaying = true;
-            this.state.isPaused = false;
-        } else {
-            this.state.isPlaying = false;
-            this.state.isPaused = true;
-            this.timing.pausedAt = this.audioContext.currentTime;
-        }
+    get duration() {
+        return this.audio.duration || 0;
     }
 
     updateVolume() {
-        if (this.audioSource) {
-            const gainNode = this.audioContext.createGain();
-            gainNode.gain.value = this.audioControls.volume;
-            this.audioSource.disconnect();
-            this.audioSource.connect(gainNode);
-            gainNode.connect(this.analyser);
-            
-            localStorage.setItem('audioVolume', this.audioControls.volume.toString());
-        }
+        this.gainNode.gain.value = this.audioControls.isMuted ? 0 : this.audioControls.volume;
+        localStorage.setItem('audioVolume', this.audioControls.volume.toString());
+    }
+
+    toggleMute() {
+        this.audioControls.isMuted = !this.audioControls.isMuted;
+        this.updateVolume();
+        return this.audioControls.isMuted;
+    }
+
+    toggleLoop() {
+        this.audioControls.isLooping = !this.audioControls.isLooping;
+        return this.audioControls.isLooping;
     }
 
     getAverageAudioLevel() {
         if (!this.data) return 0;
-        return Array.from(this.data).reduce((sum, val) => sum + val, 0) / 
+        return Array.from(this.data).reduce((sum, val) => sum + val, 0) /
                (this.data.length * 256);
     }
 
     // Clean up method
     dispose() {
-        if (this.audioSource) {
-            this.audioSource.stop();
-            this.audioSource.disconnect();
-        }
+        this.audio.pause();
+        this.audio.removeAttribute('src');
+        this.clearUploadedFile();
         if (this.audioContext) {
             this.audioContext.close();
         }

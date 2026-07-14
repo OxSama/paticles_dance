@@ -48,9 +48,10 @@ module.exports = [
       babel(babelOptions)
     ]
   },
-  // ESM build (for bundlers)
+  // ESM build (for bundlers) - tsparticles stays external, consumers provide it
   {
     input: 'src/index.js',
+    external: ['tsparticles-engine', 'tsparticles-slim', /@babel\/runtime/],
     output: [
       {
         file: packageJson.module,

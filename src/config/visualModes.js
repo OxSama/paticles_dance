@@ -36,18 +36,21 @@ export const visualizationModes = {
                     direction: "none",
                     random: false,
                     straight: false,
-                    out_mode: "out",
-                    bounce: false,
+                    outModes: {
+                        default: "out"
+                    },
                     attract: {
                         enable: true,
-                        rotateX: 600,
-                        rotateY: 1200
+                        rotate: {
+                            x: 600,
+                            y: 1200
+                        }
                     }
                 }
             }
         }
     },
-    
+
     "pulse": {
         name: "Pulse",
         description: "Particles pulse with the beat of the music",
@@ -56,22 +59,18 @@ export const visualizationModes = {
             particles: {
                 ...defaultParticleConfig.particles,
                 opacity: {
-                    value: 0.5,
-                    random: true,
-                    anim: {
+                    value: { min: 0.1, max: 0.5 },
+                    animation: {
                         enable: true,
                         speed: 1,
-                        opacity_min: 0.1,
                         sync: true
                     }
                 },
                 size: {
-                    value: 5,
-                    random: true,
-                    anim: {
+                    value: { min: 0.1, max: 5 },
+                    animation: {
                         enable: true,
                         speed: 40,
-                        size_min: 0.1,
                         sync: true
                     }
                 }
@@ -84,8 +83,8 @@ export const defaultVisualizerSettings = {
     sensitivity: 1.0,
     particleCount: 50,
     colorMode: 'spectrum',
+    palette: 'sunset', // same colors the old default spectrum used
     baseColor: '#ffffff',
-    showStats: false,
     mode: 'particles'
 };
 
